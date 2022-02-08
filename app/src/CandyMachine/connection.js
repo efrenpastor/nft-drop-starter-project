@@ -1,10 +1,9 @@
 import { Transaction } from '@solana/web3.js';
-
 import { WalletNotConnectedError } from '@solana/wallet-adapter-base';
 
 export const getErrorForTransaction = async (
   connection,
-  txid
+  txid,
 ) => {
   // wait for all confirmation before geting transaction
   await connection.confirmTransaction(txid, 'max');
@@ -32,13 +31,12 @@ export const getErrorForTransaction = async (
   return errors;
 };
 
-
 export async function sendTransactionsWithManualRetry(
   connection,
   wallet,
   instructions,
   signers,
-){
+) {
   let stopPoint = 0;
   let tries = 0;
   let lastInstructionsLength = null;
@@ -78,7 +76,7 @@ export async function sendTransactionsWithManualRetry(
           wallet,
           instructions,
           filteredSigners,
-          'StopOnFailure',
+          2,
           'single',
         );
         ids = ids.concat(txs.map(t => t.txid));
@@ -105,7 +103,7 @@ export const sendTransactions = async (
   wallet,
   instructionSet,
   signersSet,
-  sequenceType = 'Parallel',
+  sequenceType = 1,
   commitment = 'singleGossip',
   successCallback = (txid, ind) => {},
   failCallback = (txid, ind) => false,
@@ -145,7 +143,7 @@ export const sendTransactions = async (
 
   const signedTxns = await wallet.signAllTransactions(unsignedTxns);
 
-  const pendingTxns= [];
+  const pendingTxns = [];
 
   let breakEarlyObject = { breakEarly: false, i: 0 };
   console.log(
@@ -165,14 +163,15 @@ export const sendTransactions = async (
         successCallback(txid, i);
       })
       .catch(reason => {
+        // @ts-ignore
         failCallback(signedTxns[i], i);
-        if (sequenceType === 'StopOnFailure') {
+        if (sequenceType === 2) {
           breakEarlyObject.breakEarly = true;
           breakEarlyObject.i = i;
         }
       });
 
-    if (sequenceType !== 'Parallel') {
+    if (sequenceType !== 1) {
       try {
         await signedTxnPromise;
       } catch (e) {
@@ -191,7 +190,7 @@ export const sendTransactions = async (
     }
   }
 
-  if (sequenceType !== 'Parallel') {
+  if (sequenceType !== 1) {
     await Promise.all(pendingTxns);
   }
 
@@ -427,7 +426,7 @@ async function awaitTransactionSignatureConfirmation(
   connection,
   commitment = 'recent',
   queryStatus = false,
-){
+) {
   let done = false;
   let status = {
     slot: 0,
